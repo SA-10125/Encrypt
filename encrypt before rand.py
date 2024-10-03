@@ -1,0 +1,287 @@
+'''
+the idea is to do something like tor...
+first, we take a username and password
+then we create a file name and location using that username (and password (if usn is not long)) - location 1
+we have 3 keys in total including the password
+we ask the user to answer 2 recovery questions and remember their answer should they need to recover their account.
+then, we make a key each from the password - key 1, and each recovery question, key 2 and 3.
+in location 1, we encrypt and store key 2 using key 1. location of key 3 is determined by key 2.
+this way, key 1 cannot directly acces key 3, it can only acces key 2. i.e the username and password (key 1) that you enter (after signup) can only open the location and decrypt key 2.
+on decrypting key 2, we get the location of key 3 which is encrypted based on key 2 and stored. this key decrypts the contents. the name of the contents is the username. and its location is the same normal place.
+this way, only key 3 can acces the contents. its a very simple thing. but if someone copies the contents file (say, onto a pendrive/different system), they cant read the contents
+simply because the contents are not encrypoted based on the username or the password.
+the contents are encrypted based on key 3 (which is determined by the second recovery question and encrypted by key 2 (which is determined by the first recovery question and encrypted by the password))
+do you see the onion?
+now you may ask, well, they can just copy the content file, key 2 file and key 3 file and transfer that right?, thats the catch. they do not know the location of key 2 or 3.
+remember, the location of those are determined by the username and the key 2 respectively.
+this way, the username and password can only acces and decrypt key 2. key 2 can only acces and decrypt key 3 and key 3 can only access and decrypt the contents. this way, if any of the three keys are missing, the file cannot be read.
+and these files are not conveniently stored. their locations are determined by each other.
+now yes, the person can get the username and password and using that find the location of, and decrypt key 2 and using that, find the location of and decrypt key 3, and using that, decrypt the contents,
+but at that point, you might as well just ask the user for his recovery questions also.
+if needed, we can create more levels like storing location 1 which is determined by key 3 in a different location 0 which is determined by the username etc...
+(we could theoretically even automate this whole process and create n number of keys...)
+
+ok, so it turns out, its hard to create a random file location and save it so im saving it all in *C:\logs\storage python code*. will see if i can make it random later...
+the problem is that each computer has different files and i dont have acces to the names/directories of all those so...
+but its fine, the names of the files are different even though its in the same place and its just random to the naked eye so no one can find the key anyway...
+
+IMP fix ASAP.
+If any answer/pwd is the same as someone elses, then it overwrites that file. This creates problems. Think. (Maybe we can make the question very subjective. (This does not inherently solve the problem tho.)
+Also, add another layer of safety and niceness by using random.seed().
+IMP
+
+P.S - If you want to see the stored data, change .dat to .txt everywhere in the code. then you can open the files where the data is stored and read them, there is no problem.
+IMP --> If your computer does not have a C:\\logs, you can just change that location (at every instance in the source code) to wherever you need the keys to be stored...
+        I recommend putting it somewhere no one will care to see or somewhere packed and full of junk/random files.
+        (cause then no one hacking will find the key) (but also somewhere that is common in all systems in case you share it to someone or something)
+IMP --> Note: The folder must still be editable. i.e: you must be allowed and able to create and store (.dat) files on there...
+
+The code works fine for upto 10,000 characters to be stored.
+'''
+
+def encrypt(key,AD,contents):
+    import pickle
+    #encrypt key logic
+    out=[]
+    ke,tempo=0,0
+    a=int(key[1])
+    for i in contents:
+        out.append(ord(i))
+    for i in range(a):
+        for j in range(len(out)):
+            try:#restarting the key if key is traversed fully
+                ke=int(key[tempo])
+            except IndexError:
+                tempo=0
+                ke=int(key[tempo])
+            tempo+=1
+            if i%2==0:
+                out[j]=out[j]+ke
+            else:
+                out[j]=out[j]-ke
+    #pickling
+    d=open('store.dat','wb')
+    pickle.dump(out,d)
+    d.close()
+    #encrypting that pickled content using key logic
+    key=key[::-1]#reversing the key cause why not
+    d=open('store.dat','r',encoding='iso-8859-15')
+    con=d.read()
+    out=[]
+    ke,tempo=0,0
+    a=int(key[1])
+    for i in con:
+        out.append(ord(i))
+    for i in range(a):
+        for j in range(len(out)):
+            try:#restarting the key if key is traversed fully
+                ke=int(key[tempo])
+            except IndexError:
+                tempo=0
+                ke=int(key[tempo])
+            tempo+=1
+            if i%2==0:
+                out[j]=out[j]+ke
+            else:
+                out[j]=out[j]-ke
+    d.close()
+    key=key[::-1]#reversing the key back to normal
+    #emptying store
+    d=open('store.dat','w')
+    d.close()
+    #putting the encrypted contents in the file.
+    d=open(f'{AD}.dat','wb')
+    pickle.dump(out,d)
+    d.close()
+
+
+def decrypt(key,AD):
+    import pickle
+    d=open(f'{AD}.dat','rb')
+    out=pickle.load(d)
+    d.close()
+    ke,tempo=0,0
+    key=key[::-1]#reversing the key
+    a=int(key[1])
+    for i in range(a):
+        for j in range(len(out)):
+            try:#restarting the key if key is traversed fully
+                ke=int(key[tempo])
+            except IndexError:
+                tempo=0
+                ke=int(key[tempo])
+            tempo+=1
+            if i%2==0:
+                out[j]=out[j]-ke
+            else:
+                out[j]=out[j]+ke
+    data=''
+    for i in out:
+        data+=str(chr(i))
+    key=key[::-1]#reversing the key back to normal
+    d=open('store.dat','w',encoding='iso-8859-15')
+    d.write(data)
+    d.close()
+    d=open('store.dat','rb')
+    out=pickle.load(d)
+    d.close()
+    ke,tempo=0,0
+    a=int(key[1])
+    for i in range(a):
+        for j in range(len(out)):
+            try:#restarting the key if key is traversed fully
+                ke=int(key[tempo])
+            except IndexError:
+                tempo=0
+                ke=int(key[tempo])
+            tempo+=1
+            if i%2==0:
+                out[j]=out[j]-ke
+            else:
+                out[j]=out[j]+ke
+    content=''
+    for i in out:
+        content+=str(chr(i))
+    #emptying store
+    d=open('store.dat','w')
+    d.close()
+    return(content)
+
+    
+def signup():#first time, we're creating everything
+    contents,key1,key2,key3,usn,pwd,L1,L2='','','','','','','C:\\logs\\storage python code\\','C:\\logs\\storage python code\\'
+    print("If this is your first time running this code, got to this directory *C:\\logs* and create a file called *storage python code* if it does not exist")
+    #with enough users entered, no one can und it dw (names are random)
+    while usn=='':
+        usn=input("Enter your username: ")
+    while pwd=='':
+        pwd=input("Enter your password: ")
+    while contents=='':
+        contents=input("Enter the contents to be entered: ")
+    for i in pwd:#making key 1
+        for j in range(ord(i)):
+            key1+=str((ord(i)*j)+(ord(i)*ord(i))+(j*j))
+
+    #making L1 (name), stores key 2
+    temp=''
+    for i in usn:
+        j=ord(i)
+        if j%2==0 and len(L1)<150:
+            L1+=str((j*j)**2)
+    for i in pwd:
+        j=ord(i)
+        if j%2==0 and len(L1)<150:
+             L1+=str((j*j)**2)
+
+    q1,q2='',''
+    while q1=='':
+        q1=input("Enter the name of your first school: ")#can be any question
+    while q2=='':
+        q2=input("Enter your first nickname: ")#can be any question
+
+    for i in q1:#making key 2
+        for j in range(ord(i)):
+            key2+=str((ord(i)*j)+(ord(i)*ord(i))+(j*ord(i)))
+    for i in q2:#making key 3
+        for j in range(ord(i)):
+            key3+=str((ord(i)*j*j)+(ord(i)*ord(i))+(j*j))
+        
+    #making L2 (name), stores key 3
+    L2+=key2[-1]
+    for i in key2:
+        if int(i)%2==0 and len(L2)<150:
+                L2+=i
+
+    #encrypting contents using key 3 and storing it in usn.dat
+    encrypt(key3,usn,contents)
+    #now we must encrypt key3 using key2 and store it in L2
+    encrypt(key2,L2,key3)
+    #then we must encrypt key2 using key1 and store it in L1
+    encrypt(key1,L1,key2)
+    print("Saved")
+
+    
+def login():
+    #here, we only know the usn and password cause we cant ask them to enter everything again...
+    #its basically decrypt but instead of printing the contents at the end, we append to the file.
+    #why cant we just append? we need key 3 to encrypt it and we need key 2 to open and read key 3.
+    #hence, we need to decrypt everything except the contents in order to append to the users file in a readable way...
+    contents,key1,key2,key3,usn,pwd,L1,L2='','','','','','','C:\\logs\\storage python code\\','C:\\logs\\storage python code\\'
+    while usn=='':
+        usn=input("Enter your username: ")
+    while pwd=='':
+        pwd=input("Enter your password: ")
+    while contents=='':
+        contents=input("Enter the contents to be entered: ")
+    for i in pwd:#remaking key 1
+        for j in range(ord(i)):
+            key1+=str((ord(i)*j)+(ord(i)*ord(i))+(j*j))
+   #remaking L1 (name), stores key 2
+    temp=''
+    for i in usn:
+        j=ord(i)
+        if j%2==0 and len(L1)<150:
+            L1+=str((j*j)**2)
+    for i in pwd:
+        j=ord(i)
+        if j%2==0 and len(L1)<150:
+             L1+=str((j*j)**2)
+    #decrypting key 2 from L1 using key 1
+    key2=decrypt(key1,L1)
+    #remaking L2 (name), contains key 3
+    L2+=key2[-1]
+    for i in key2:
+        if int(i)%2==0 and len(L2)<150:
+                L2+=i
+    #decrypting key 3 from L2 using key 2
+    key3=decrypt(key2,L2)
+    #encrypting contents using key 3 and storing it in usn.dat
+    con=decrypt(key3,usn)
+    con+=contents
+    encrypt(key3,usn,con)
+    print("Saved")
+
+
+def read():
+    contents,key1,key2,key3,usn,pwd,L1,L2='','','','','','','C:\\logs\\storage python code\\','C:\\logs\\storage python code\\'
+    while usn=='':
+        usn=input("Enter your username: ")
+    while pwd=='':
+        pwd=input("Enter your password: ")
+    for i in pwd:#remaking key 1
+        for j in range(ord(i)):
+            key1+=str((ord(i)*j)+(ord(i)*ord(i))+(j*j))
+    #remaking L1 (name), stores key 2
+    temp=''
+    for i in usn:
+        j=ord(i)
+        if j%2==0 and len(L1)<150:
+            L1+=str((j*j)**2)
+    for i in pwd:
+        j=ord(i)
+        if j%2==0 and len(L1)<150:
+             L1+=str((j*j)**2)
+    #decrypting key 2 from L1 using key 1
+    key2=decrypt(key1,L1)
+    #remaking L2 (name), contains key 3
+    L2+=key2[-1]
+    for i in key2:
+        if int(i)%2==0 and len(L2)<150:
+                L2+=i
+    #decrypting key 3 from L2 using key 2
+    key3=decrypt(key2,L2)
+    #decrypting contents from usn.dat using key 3
+    contents=decrypt(key3,usn)
+    print(contents)
+    
+sign=''
+while sign=='':#cant have an empty
+    sign=input("Signup/Login/Read: ")
+if sign.upper()=='SIGNUP':
+    signup()
+elif sign.upper()=='LOGIN':
+    login()
+else:
+    read()
+
+'If there was a csv file with all usernames, passwords and answers, we can traverse it in a loop using signup and make files for all of them.'
